@@ -5,17 +5,10 @@ import logging
 import os
 import sys
 import time
-import brotli
 import requests
 import yfinance as yf
-import chromedriver_autoinstaller
-from selenium.webdriver.chrome.options import Options
-from seleniumwire import webdriver
 
-logging.getLogger("seleniumwire").setLevel(logging.ERROR)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-chromedriver_autoinstaller.install()
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 SYMBOLS_DIR = os.path.join(SCRIPT_DIR, 'symbols')
@@ -68,13 +61,19 @@ def main():
                 symbol_price_date = symbol_info['Close'].index[-1]
                 symbol_price_date = datetime.datetime.strftime(symbol_price_date, '%Y-%m-%d')
 
-            elif symbol_track_info['source'] == 'issa' and symbol_track_info['type'] == 'etf':
-                # Call the TASE API directly; loading market.tase.co.il through selenium-wire's
+            elif symbol_track_info['source'] == 'issa':
+                # Call the TASE APIs directly; loading the TASE sites through selenium-wire's
                 # proxy gets ERR_CONNECTION_CLOSED from GitHub runners.
-                url = f'https://api.tase.co.il/api/company/securitydata?securityId={symbol}&lang=0'
+                if symbol_track_info['type'] == 'etf':
+                    url = f'https://api.tase.co.il/api/company/securitydata?securityId={symbol}&lang=0'
+                    referer = 'https://market.tase.co.il/'
+                else:
+                    url = f'https://maya.tase.co.il/api/v1/funds/mutual/{symbol}'
+                    referer = 'https://maya.tase.co.il/'
+
                 for attempt in range(1, 6):
                     try:
-                        r = requests.get(url, headers={'User-Agent': user_agent_header, 'Referer': 'https://market.tase.co.il/'}, timeout=30)
+                        r = requests.get(url, headers={'User-Agent': user_agent_header, 'Referer': referer}, timeout=30)
                         r.raise_for_status()
                         response = r.json()
                         break
@@ -84,40 +83,12 @@ def main():
                         logging.warning(f'attempt {attempt} for {symbol} failed, retrying ...')
                         time.sleep(10 * attempt)
 
-                symbol_price = response['LastRate'] / 100  # ILA -> ILS
-                symbol_price_date = datetime.datetime.strptime(response['TradeDate'], "%d/%m/%Y").strftime('%Y-%m-%d')
-
-            elif symbol_track_info['source'] == 'issa':
-                for attempt in range(1, 10):
-                    if symbol_price:
-                        break
-
-                    options = Options()
-                    options.add_argument("--headless=new")
-                    options.add_argument("--window-size=1920,980")
-                    driver = webdriver.Chrome(options=options)
-
-                    if symbol_track_info['type'] == 'etf':
-                        url = f"https://market.tase.co.il/he/market_data/security/{symbol}"
-                    else:
-                        url = f"https://maya.tase.co.il/he/funds/mutual-funds/{symbol}"
-
-                    driver.get(url)
-                    time.sleep(30 * attempt)
-                    driver.implicitly_wait(30 * attempt)
-                    for request in driver.requests:
-                        if request.response:
-                            if request.url.startswith('https://api.tase.co.il/api/company/securitydata'):
-                                response = get_issa_rest_api_response(request)
-                                symbol_price = response['LastRate'] / 100  # ILA -> ILS
-                                symbol_price_date = response['TradeDate']
-                                symbol_price_date = datetime.datetime.strptime(symbol_price_date, "%d/%m/%Y").strftime('%Y-%m-%d')
-
-                            if request.url.startswith('https://maya.tase.co.il/api/v1/funds/mutual'):
-                                response = get_issa_rest_api_response(request)
-                                symbol_price = response['purchasePrice'] / 100  # ILA -> ILS
-                                symbol_price_date = response['ratesAsOf']
-                                symbol_price_date = datetime.datetime.strptime(symbol_price_date, "%Y-%m-%d").strftime('%Y-%m-%d')
+                if symbol_track_info['type'] == 'etf':
+                    symbol_price = response['LastRate'] / 100  # ILA -> ILS
+                    symbol_price_date = datetime.datetime.strptime(response['TradeDate'], "%d/%m/%Y").strftime('%Y-%m-%d')
+                else:
+                    symbol_price = response['purchasePrice'] / 100  # ILA -> ILS
+                    symbol_price_date = response['ratesAsOf']
 
             if not symbol_price:
                 raise Exception(f'Failed to get price for {symbol}')
@@ -146,16 +117,6 @@ def main():
             failed.append(symbol_track_file_path)
 
     return failed
-
-
-def get_issa_rest_api_response(request):
-    if 400 <= request.response.status_code < 600:
-        raise Exception(f'Status code {request.response.status_code}')
-
-    response = brotli.decompress(request.response.body)
-    response = response.decode('utf-8')
-    response = json.loads(response)
-    return response
 
 
 if __name__ == '__main__':

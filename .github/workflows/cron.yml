@@ -1,7 +1,8 @@
 name: cron
 on:
   schedule:
-    - cron: '0 * * * *'
+    # 10:00 UTC = 13:00 Israel time during IDT (summer), 12:00 during IST (winter)
+    - cron: '0 10 * * *'
   push:
     branches:
       - master
@@ -10,6 +11,9 @@ on:
 concurrency:
   group: cron
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   cron:
@@ -35,4 +39,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          cname: stonks.jossef.com

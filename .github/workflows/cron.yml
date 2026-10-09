@@ -1,8 +1,9 @@
 name: cron
 on:
   schedule:
-    # 10:00 UTC = 13:00 Israel time during IDT (summer), 12:00 during IST (winter)
-    - cron: '0 10 * * *'
+    # GitHub cron is UTC-only: 11:00 UTC = 13:00 Israel time during IST (winter),
+    # 14:00 during IDT (summer). Use '0 10 * * *' for 13:00 in summer.
+    - cron: '0 11 * * *'
   push:
     branches:
       - master
@@ -34,8 +35,12 @@ jobs:
         run: |
           python3 main.py
 
+      # Deploy whatever succeeded even if some symbols failed; keep_files leaves
+      # the last good price of a failed symbol in place instead of deleting it.
       - name: Deploy
+        if: ${{ !cancelled() }}
         uses: peaceiris/actions-gh-pages@v4
         with:
+          keep_files: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist

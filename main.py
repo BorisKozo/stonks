@@ -3,6 +3,7 @@ import glob
 import json
 import logging
 import os
+import sys
 import time
 import brotli
 import requests
@@ -35,6 +36,7 @@ def get_latest_user_agent(operating_system='windows', browser='chrome'):
 
 
 def main():
+    failed = []
     logging.info(f"reading symbols *.json files in {SYMBOLS_DIR} ...")
     for symbol_track_file_path in glob.glob(os.path.join(SYMBOLS_DIR, '*.json'), recursive=True):
         logging.info(f"processing {symbol_track_file_path} ...")
@@ -122,7 +124,9 @@ def main():
 
         except Exception as e:
             logging.exception(f'Failed to process {symbol_track_file_path}')
-            raise
+            failed.append(symbol_track_file_path)
+
+    return failed
 
 
 def get_issa_rest_api_response(request):
@@ -136,4 +140,7 @@ def get_issa_rest_api_response(request):
 
 
 if __name__ == '__main__':
-    main()
+    failed = main()
+    if failed:
+        logging.error(f'{len(failed)} symbol(s) failed: {failed}')
+        sys.exit(1)

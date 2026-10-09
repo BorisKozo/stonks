@@ -68,6 +68,25 @@ def main():
                 symbol_price_date = symbol_info['Close'].index[-1]
                 symbol_price_date = datetime.datetime.strftime(symbol_price_date, '%Y-%m-%d')
 
+            elif symbol_track_info['source'] == 'issa' and symbol_track_info['type'] == 'etf':
+                # Call the TASE API directly; loading market.tase.co.il through selenium-wire's
+                # proxy gets ERR_CONNECTION_CLOSED from GitHub runners.
+                url = f'https://api.tase.co.il/api/company/securitydata?securityId={symbol}&lang=0'
+                for attempt in range(1, 6):
+                    try:
+                        r = requests.get(url, headers={'User-Agent': user_agent_header, 'Referer': 'https://market.tase.co.il/'}, timeout=30)
+                        r.raise_for_status()
+                        response = r.json()
+                        break
+                    except Exception:
+                        if attempt == 5:
+                            raise
+                        logging.warning(f'attempt {attempt} for {symbol} failed, retrying ...')
+                        time.sleep(10 * attempt)
+
+                symbol_price = response['LastRate'] / 100  # ILA -> ILS
+                symbol_price_date = datetime.datetime.strptime(response['TradeDate'], "%d/%m/%Y").strftime('%Y-%m-%d')
+
             elif symbol_track_info['source'] == 'issa':
                 for attempt in range(1, 10):
                     if symbol_price:

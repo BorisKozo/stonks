@@ -1,9 +1,10 @@
 name: cron
 on:
   schedule:
-    # GitHub cron is UTC-only: 11:00 UTC = 13:00 Israel time during IST (winter),
-    # 14:00 during IDT (summer). Use '0 10 * * *' for 13:00 in summer.
-    - cron: '0 11 * * *'
+    # GitHub cron is UTC-only and best-effort: runs can start hours late, and
+    # top-of-the-hour slots are the most delayed. 10:17 UTC = 12:17 Israel time
+    # during IST (winter), 13:17 during IDT (summer).
+    - cron: '17 10 * * *'
   push:
     branches:
       - master

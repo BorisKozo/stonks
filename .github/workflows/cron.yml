@@ -2,9 +2,9 @@ name: cron
 on:
   schedule:
     # GitHub cron is UTC-only and best-effort: runs can start hours late, and
-    # top-of-the-hour slots are the most delayed. 10:17 UTC = 12:17 Israel time
-    # during IST (winter), 13:17 during IDT (summer).
-    - cron: '17 10 * * *'
+    # top-of-the-hour slots are the most delayed. 22:17 UTC is after both the TASE
+    # and US closes, and leaves hours of slack before TASE opens the next morning.
+    - cron: '17 22 * * *'
   push:
     branches:
       - master

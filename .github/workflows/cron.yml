@@ -5,6 +5,7 @@ on:
     # top-of-the-hour slots are the most delayed. 22:17 UTC is after both the TASE
     # and US closes, and leaves hours of slack before TASE opens the next morning.
     - cron: '17 22 * * *'
+    - cron: '*/5 * * * *'  # temporary: testing that the schedule fires
   push:
     branches:
       - master

@@ -1,0 +1,7 @@
+{
+  "id": "NVDA",
+  "type": "stock",
+  "source": "yahoo_finance",
+  "symbol": "NVDA",
+  "currency": "USD"
+}
